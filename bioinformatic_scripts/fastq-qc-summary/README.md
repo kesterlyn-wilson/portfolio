@@ -1,25 +1,15 @@
 # FASTQ QC Summary
 
 **Description:**  
-This lightweight Python script parses FASTQ quality metric files and outputs a summary table of key run metrics, including read counts, GC content, average quality scores, and sequence length distribution. It’s designed for quick QC checks of raw sequencing data prior to downstream analysis.
-
-**Use Case**  
-The script can be used by NGS support teams, bioinformaticians, or lab scientists who want to:
-- Validate sequencing run quality
-- Compare read metrics across samples
-- Identify low-quality or biased libraries before alignment
-
----
-
-### 🚀 Features
+Very lightweight Python script to parse FASTQ quality metric files w/ a summary table of key run metrics (read counts, GC content, average quality scores, and sequence length distribution). Conduct quick QC checks of raw sequencing data prior to downstream analysis.
 - Parses standard FASTQ or text-based QC outputs  
-- Computes key metrics (mean Q-score, read length, GC%)  
-- Exports results as a clean CSV summary  
+- Computes key quality metrics (mean Q-score, read length, GC%)  
+- Exports results in CSV summary  
 - Compatible with outputs from tools like FastQC, SeqKit, or custom log files
 
 ---
 
-### 🧰 Dependencies
+### Dependencies
 pandas
 biopython
 
