@@ -1,0 +1,4 @@
+Sample_ID,Total_Reads,Avg_QScore,GC_Content,Mean_Read_Length
+sample1,500,34.19,50.09,149.9
+sample2,500,27.5,50.05,199.7
+sample3,500,21.53,49.52,100.3
