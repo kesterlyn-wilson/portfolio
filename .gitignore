@@ -1,13 +1,114 @@
-# Ignore Python cache files and build outputs
+###########################
+# --- PYTHON ---
+###########################
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.pkl
-*.egg-info/
+*.py[cod]
+*$py.class
+
+# Environments
 .env
+.venv
+env/
 venv/
-.env/
-.idea/
+ENV/
+env.bak/
+venv.bak/
+
+# Packaging / build
+build/
+develop-eggs/
+dist/
+downloads/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+*.manifest
+*.spec
+
+# C extensions / bytecode
+*.pyd
+*.pyo
+*.pkl
+
+# Testing / reports
+.coverage
+.tox/
+.nox/
+.pytest_cache/
+htmlcov/
+
+# IDE & OS artifacts
 .vscode/
+.idea/
 .DS_Store
+Thumbs.db
+
+###########################
+# --- R / BIOINFORMATICS ---
+###########################
+# R session & project files
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+.Rproj.user/
+*.Rproj
+
+# Compiled or temp data
+*.RDataTmp
+*.Rout
+*.Rout.save
+*.Rout.fail
+*.Rcheck/
+
+# Bioconductor / temporary downloads
+*/.Rcheck/
+*/.bioconductor_cache/
+*/.cache/
+
+# Output / figures / logs
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.svg
+*.html
+*.log
+*.tmp
+
+###########################
+# --- GENERAL ---
+###########################
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Local config / credentials
+*.env
+*.json
+secrets.*
+
+# OS metadata
+ehthumbs.db
+desktop.ini
+
+# Data dumps or large outputs
+*.csv
+*.tsv
+*.gz
+*.zip
+*.tar
+*.tar.gz
+*.h5
+*.bam
+*.sam
+*.fastq
+*.fq
+*.vcf
+*.bed
+*.gtf
+*.gff
+*.rds
+*.rda
+*.sqlite
+*.db
