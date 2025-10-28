@@ -1,0 +1,13 @@
+# Ignore Python cache files and build outputs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.egg-info/
+.env
+venv/
+.env/
+.idea/
+.vscode/
+.DS_Store

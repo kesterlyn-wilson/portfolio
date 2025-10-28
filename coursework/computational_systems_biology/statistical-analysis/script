@@ -1,0 +1,133 @@
+###############################################################################
+# RBIF108 - Week 2
+# Author: Kesterlyn Wilson
+# Title: Temporal Regulation of Endothelial Systems Under Hemodynamic Forces
+###############################################################################
+
+# ---------------------------- 1. PACKAGE SETUP ------------------------------
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+pkgs <- c("data.table","dplyr","ggplot2","DESeq2","EnhancedVolcano",
+          "ComplexHeatmap","fgsea","clusterProfiler","ReactomePA",
+          "org.Hs.eg.db","AnnotationDbi")
+for (p in pkgs) if (!require(p, character.only = TRUE)) BiocManager::install(p, ask = FALSE)
+
+library(data.table); library(dplyr); library(ggplot2)
+library(DESeq2); library(EnhancedVolcano); library(ComplexHeatmap)
+library(fgsea); library(clusterProfiler); library(ReactomePA)
+library(org.Hs.eg.db); library(AnnotationDbi)
+
+out_dir <- "results"; fig_dir <- "figures"
+dir.create(out_dir, showWarnings = FALSE)
+dir.create(fig_dir, showWarnings = FALSE)
+
+# ---------------------------- 2. LOAD DATA ----------------------------------
+urld <- "https://www.ncbi.nlm.nih.gov/geo/download/?format=file&type=rnaseq_counts"
+path <- paste(urld, "acc=GSE202220", "file=GSE202220_raw_counts_GRCh38.p13_NCBI.tsv.gz", sep="&")
+tbl <- as.matrix(fread(path, header = TRUE, colClasses = "integer"), rownames = "GeneID")
+
+apath <- paste(urld, "type=rnaseq_counts", "file=Human.GRCh38.p13.annot.tsv.gz", sep="&")
+annot <- fread(apath, header = TRUE, quote = "", stringsAsFactors = FALSE, data.table = FALSE)
+rownames(annot) <- annot$GeneID
+
+# Create fake condition labels (replace with real metadata if available)
+gsms <- "10101010"
+gs <- factor(strsplit(gsms, split = "")[[1]])
+groups <- make.names(c("Tx","Ctrl"))
+levels(gs) <- groups
+sample_info <- data.frame(Group = gs, row.names = colnames(tbl))
+
+# ---------------------------- 3. DESEQ2 ANALYSIS ----------------------------
+keep <- rowSums(tbl >= 10) >= min(table(gs))
+tbl <- tbl[keep, ]
+dds <- DESeqDataSetFromMatrix(countData = tbl, colData = sample_info, design = ~ Group)
+dds <- DESeq(dds, test = "Wald", sfType = "poscount")
+
+res <- results(dds, contrast = c("Group", groups[1], groups[2]), alpha = 0.05, pAdjustMethod = "fdr")
+res <- as.data.frame(res)
+res$GeneID <- rownames(res)
+res <- merge(res, annot, by = "GeneID", sort = FALSE)
+res <- res |> arrange(padj)
+
+write.table(res, file.path(out_dir, "GSE202220_DEGs.txt"), sep = "\t", row.names = FALSE)
+
+# ---------------------------- 4. VOLCANO PLOT -------------------------------
+png(file.path(fig_dir, "volcano_GSE202220.png"), width = 900, height = 600)
+EnhancedVolcano(res,
+  lab = res$Symbol,
+  x = "log2FoldChange",
+  y = "padj",
+  pCutoff = 0.05,
+  FCcutoff = 1,
+  title = "Differential Expression: Tx vs Ctrl",
+  subtitle = "GSE202220 Dataset"
+)
+dev.off()
+
+# ---------------------------- 5. HEATMAP ------------------------------------
+sig <- res |> filter(!is.na(padj) & padj < 0.05) |> 
+        arrange(desc(abs(log2FoldChange))) |> head(30) |> pull(Symbol)
+
+vsd <- vst(dds, blind = TRUE)
+mat <- assay(vsd)[rownames(assay(vsd)) %in% sig, ]
+mat <- t(scale(t(mat)))
+
+png(file.path(fig_dir, "heatmap_GSE202220.png"), width = 1200, height = 900)
+Heatmap(mat, name = "Z-score",
+        show_row_names = TRUE,
+        show_column_names = TRUE,
+        cluster_rows = TRUE,
+        cluster_columns = TRUE,
+        column_title = "Top 30 DE Genes")
+dev.off()
+
+# ---------------------------- 6. FGSEA ANALYSIS -----------------------------
+# Prepare ranked list
+ranks <- res$log2FoldChange
+names(ranks) <- toupper(res$Symbol)
+ranks <- ranks[!is.na(ranks)]
+ranks <- sort(ranks, decreasing = TRUE)
+
+# Download Reactome pathways GMT if not present
+gmt_path <- "ReactomePathways.gmt"
+if (!file.exists(gmt_path)) {
+  download.file("https://reactome.org/download/current/ReactomePathways.gmt.zip", "ReactomePathways.zip")
+  unzip("ReactomePathways.zip", exdir = ".")
+}
+
+react_paths <- fgsea::gmtPathways(gmt_path)
+fgsea_res <- fgsea(pathways = react_paths, stats = ranks, minSize = 15, maxSize = 500)
+fgsea_res <- fgsea_res |> arrange(padj)
+write.table(fgsea_res, file.path(out_dir, "fgsea_results_GSE202220.txt"), sep = "\t", row.names = FALSE)
+
+# Top 10 pathways bar plot
+top_pathways <- fgsea_res |> head(10)
+ggplot(top_pathways, aes(reorder(pathway, NES), NES, fill = padj < 0.05)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(title = "Top 10 Enriched Reactome Pathways", x = "Pathway", y = "Normalized Enrichment Score") +
+  theme_minimal()
+ggsave(file.path(fig_dir, "fgsea_barplot_GSE202220.png"), width = 8, height = 5, dpi = 300)
+
+# ---------------------------- 7. REACTOMEPA ---------------------------------
+ann <- AnnotationDbi::select(org.Hs.eg.db,
+                             keys = res$Symbol,
+                             keytype = "SYMBOL",
+                             columns = c("SYMBOL", "ENTREZID"))
+sig_genes <- res |> filter(!is.na(padj) & padj < 0.05) |>
+  left_join(ann, by = c("Symbol" = "SYMBOL")) |>
+  filter(!is.na(ENTREZID)) |>
+  pull(ENTREZID) |> unique()
+
+react <- enrichPathway(gene = sig_genes, organism = "human", pvalueCutoff = 0.05)
+png(file.path(fig_dir, "reactome_dotplot_GSE202220.png"), width = 900, height = 600)
+dotplot(react, showCategory = 10, title = "Reactome Enrichment: GSE202220")
+dev.off()
+
+# ---------------------------- 8. SUMMARY ------------------------------------
+cat("\n===== Summary =====\n")
+cat("Total genes analyzed:", nrow(res), "\n")
+cat("Significant DEGs (padj < 0.05):", sum(res$padj < 0.05, na.rm = TRUE), "\n")
+cat("Top pathway:", top_pathways$pathway[1], "\n")
+
+# Save session info for reproducibility
+writeLines(capture.output(sessionInfo()), file.path(out_dir, "sessionInfo.txt")
